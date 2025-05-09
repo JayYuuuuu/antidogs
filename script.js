@@ -21,13 +21,8 @@ let remainingTimerTime = 0; // 暂停时剩余的计时器时间
 let wakeLock = null; // 用于保持屏幕唤醒的锁
 let audioDurations = {}; // 存储音频文件时长的对象
 let playStartTime = null; // 播放开始时间，用于备用计时
-
-// AirPlay相关变量
-let isAirPlayConnected = false; // 是否连接到AirPlay设备
-let airPlayDevice = null; // 当前连接的AirPlay设备
-let useWebAudio = false; // 是否使用WebAudio API
-let audioContext = null; // WebAudio上下文
-let audioSource = null; // WebAudio音频源
+let audioContext = null; // 音频上下文，用于检测音频设备
+let currentAudioDevice = "未知设备"; // 当前连接的音频设备
 
 // 离线状态跟踪
 let isOffline = !navigator.onLine;
@@ -75,12 +70,6 @@ const shareUrlInput = document.getElementById('shareUrl');
 const copyShareUrlBtn = document.getElementById('copyShareUrl');
 const qrCodeContainer = document.getElementById('qrCode');
 
-// AirPlay输出控制相关元素
-const audioOutputGroup = document.getElementById('audioOutputGroup');
-const currentAudioOutput = document.getElementById('currentAudioOutput');
-const airplayStatus = document.getElementById('airplayStatus');
-const audioOutputBtn = document.getElementById('audioOutputBtn');
-
 // 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
     // 加载音频文件
@@ -111,8 +100,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // 初始化分享功能
     initShareFeature();
     
-    // 初始化音频输出检测和WebAudio
-    initAudioOutput();
+    // 初始化音频设备检测
+    initAudioDeviceDetection();
 });
 
 /**
@@ -757,27 +746,6 @@ function setupEventListeners() {
         copyShareUrlBtn.addEventListener('click', copyShareUrl);
     }
     
-    // 音频输出切换按钮
-    if (audioOutputBtn) {
-        audioOutputBtn.addEventListener('click', () => {
-            // 检查是否iOS设备
-            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-                // iOS设备显示系统控制
-                showIOSAirPlayControl();
-            } else {
-                // 其他设备重新检测音频输出
-                checkAudioOutputDevices();
-                
-                // 在非iOS设备上切换输出设备（如有）
-                if (isAirPlayConnected && airPlayDevice) {
-                    switchToAirPlayOutput();
-                } else {
-                    switchToDefaultOutput();
-                }
-            }
-        });
-    }
-    
     // 初始化时间限制状态
     updateTimeLimitedState();
 }
@@ -847,52 +815,61 @@ function updatePlayMode() {
 
 /**
  * 开始播放
+ * 根据播放模式开始播放音频
  */
 function startPlayback() {
-    // 如果当前是暂停状态，恢复播放
+    // 如果已经在播放，则不执行任何操作
+    if (isPlaying && !isPaused) return;
+    
+    // 如果是暂停后恢复播放
     if (isPaused) {
         resumePlayback();
         return;
     }
     
-    // 获取播放设置
+    // 获取播放模式
+    const mode = playModeSelect.value;
+    
+    // 获取播放次数和时间限制
     playCount = parseInt(playCountInput.value);
     playDuration = parseInt(playDurationInput.value);
     
-    // 更新时间限制状态
-    isTimeLimited = playDuration > 0;
-    
-    // 重置计数器
+    // 重置当前播放次数
     currentPlayCount = 0;
     
-    // 记录播放开始时间（用于备用计时）
+    // 更新时间限制状态
+    isTimeLimited = playDuration > 0;
     playStartTime = new Date();
     
-    // 检查播放模式
-    if (sequenceMode) {
-        // 检查是否有选择音频
-        if (playSequence.length === 0) {
-            alert('请先添加音频到播放序列');
-            return;
-        }
-        
-        // 开始顺序播放
+    // 根据播放模式开始播放
+    if (mode === 'sequence' && playSequence.length > 0) {
+        // 顺序播放模式
+        sequenceMode = true;
         currentAudioIndex = 0;
         playNextInSequence();
-    } else {
-        // 单个播放模式下检查是否已选择音频
-        if (!audioPlayer.src) {
-            // 默认播放第一个音频
-            if (audioFiles.length > 0) {
-                playSingleAudio(audioFiles[0].id);
-            } else {
-                alert('没有可用的音频文件');
-                return;
-            }
+    } else if (mode === 'auto-next') {
+        // 自动播放下一首模式
+        sequenceMode = false;
+        currentAudioIndex = 0;
+        // 播放所有音频中的第一个
+        if (audioFiles.length > 0) {
+            playSingleAudio(audioFiles[0].id);
         } else {
-            // 继续播放当前音频
-            audioPlayer.play();
-            updatePlayStatus(true);
+            alert('没有可用的音频文件');
+            return;
+        }
+    } else {
+        // 单个播放模式
+        sequenceMode = false;
+        // 如果当前有选中的音频则播放，否则播放列表中第一个
+        const selectedAudio = document.querySelector('.audio-item.selected');
+        if (selectedAudio) {
+            playSingleAudio(parseInt(selectedAudio.dataset.id));
+        } else if (audioFiles.length > 0) {
+            playSingleAudio(audioFiles[0].id);
+        } else {
+            alert('没有可用的音频文件');
+            return;
         }
     }
     
@@ -907,6 +884,19 @@ function startPlayback() {
             alert(`已达到设定的播放时间 ${playDuration} 分钟`);
         }, durationMs);
     }
+    
+    // 更新播放状态
+    isPlaying = true;
+    isPaused = false;
+    
+    // 更新按钮状态
+    updateButtonStates();
+    
+    // 申请保持屏幕唤醒
+    requestWakeLock();
+    
+    // 检测当前音频设备
+    setTimeout(detectAudioDevice, 1000);
 }
 
 /**
@@ -1067,11 +1057,6 @@ function playSingleAudio(audioId) {
             
             // 请求唤醒锁
             requestWakeLock();
-            
-            // 如果检测到AirPlay设备，尝试切换输出
-            if (isAirPlayConnected && airPlayDevice) {
-                switchToAirPlayOutput();
-            }
         })
         .catch(error => {
             // 播放失败
@@ -1079,177 +1064,6 @@ function playSingleAudio(audioId) {
             alert(`播放失败: ${error.message}`);
             updatePlayStatus(false);
         });
-}
-
-/**
- * 切换到AirPlay输出设备
- */
-function switchToAirPlayOutput() {
-    // 如果没有连接到AirPlay设备，直接返回
-    if (!isAirPlayConnected || !airPlayDevice) {
-        console.log('没有可用的AirPlay设备');
-        return;
-    }
-    
-    // 检查浏览器是否支持setSinkId
-    if (typeof audioPlayer.setSinkId === 'function') {
-        try {
-            audioPlayer.setSinkId(airPlayDevice.deviceId)
-                .then(() => {
-                    console.log('成功切换到AirPlay设备');
-                    currentAudioOutput.textContent = airPlayDevice.label || 'AirPlay设备';
-                })
-                .catch(err => {
-                    console.error('切换音频输出失败:', err);
-                    
-                    // 失败时尝试使用WebAudio作为备选方案
-                    useWebAudioFallback();
-                });
-        } catch (err) {
-            console.error('切换音频输出失败:', err);
-            
-            // 失败时尝试使用WebAudio作为备选方案
-            useWebAudioFallback();
-        }
-    } else {
-        // 浏览器不支持setSinkId，使用WebAudio作为备选方案
-        console.log('浏览器不支持setSinkId，尝试使用WebAudio');
-        useWebAudioFallback();
-    }
-}
-
-/**
- * 切换回默认音频输出
- */
-function switchToDefaultOutput() {
-    // 如果正在使用WebAudio，先停止WebAudio
-    if (useWebAudio && audioSource) {
-        try {
-            audioSource.disconnect();
-            audioSource = null;
-        } catch (err) {
-            console.error('断开WebAudio连接失败:', err);
-        }
-    }
-    
-    // 重置状态
-    useWebAudio = false;
-    
-    // 如果支持setSinkId，切换回默认设备
-    if (typeof audioPlayer.setSinkId === 'function') {
-        try {
-            audioPlayer.setSinkId('default')
-                .then(() => {
-                    console.log('成功切换回默认音频输出');
-                })
-                .catch(err => {
-                    console.error('切换到默认音频输出失败:', err);
-                });
-        } catch (err) {
-            console.error('切换到默认音频输出失败:', err);
-        }
-    }
-    
-    // 更新UI
-    currentAudioOutput.textContent = '手机扬声器';
-    updateAirplayStatus('未连接', '');
-}
-
-/**
- * 使用WebAudio作为备选方案播放音频
- * WebAudio API在iOS设备上更可靠，特别是在AirPlay场景下
- */
-function useWebAudioFallback() {
-    // 确保AudioContext已初始化
-    if (!audioContext && window.AudioContext) {
-        try {
-            audioContext = new AudioContext();
-        } catch (e) {
-            console.error('创建AudioContext失败:', e);
-            return;
-        }
-    }
-    
-    if (!audioContext) {
-        console.error('AudioContext不可用');
-        return;
-    }
-    
-    // 如果audioContext处于暂停状态，恢复它
-    if (audioContext.state === 'suspended') {
-        audioContext.resume().catch(err => {
-            console.error('恢复AudioContext失败:', err);
-        });
-    }
-    
-    try {
-        // 创建媒体元素源
-        const source = audioContext.createMediaElementSource(audioPlayer);
-        
-        // 如果已有之前的source，先断开连接
-        if (audioSource) {
-            audioSource.disconnect();
-        }
-        
-        // 连接到音频目标
-        source.connect(audioContext.destination);
-        
-        // 保存音频源引用
-        audioSource = source;
-        
-        // 更新状态
-        useWebAudio = true;
-        
-        console.log('成功切换到WebAudio播放');
-    } catch (err) {
-        console.error('WebAudio设置失败:', err);
-    }
-}
-
-/**
- * 显示iOS设备的AirPlay控制
- * 针对iOS设备的特殊处理，显示系统原生AirPlay选择界面
- */
-function showIOSAirPlayControl() {
-    // 检查设备是否为iOS
-    if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-        console.log('非iOS设备，无法显示系统AirPlay控制');
-        return;
-    }
-    
-    try {
-        // 尝试使用WebKit特有的API显示AirPlay选择器
-        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.showAirPlayRoutePickerView) {
-            window.webkit.messageHandlers.showAirPlayRoutePickerView.postMessage({});
-            console.log('已调用iOS AirPlay选择器');
-            return;
-        }
-        
-        // 备选方案：创建视频元素触发AirPlay按钮显示
-        // 这是一个hack，利用视频元素触发原生AirPlay控制
-        const tempVideo = document.createElement('video');
-        tempVideo.setAttribute('playsinline', '');
-        tempVideo.setAttribute('controls', '');
-        tempVideo.style.position = 'fixed';
-        tempVideo.style.bottom = '0';
-        tempVideo.style.opacity = '0.01'; // 几乎不可见但仍能交互
-        tempVideo.style.pointerEvents = 'none'; // 不阻止用户交互
-        tempVideo.style.zIndex = '999999';
-        
-        // 添加到文档并尝试播放
-        document.body.appendChild(tempVideo);
-        
-        // 短暂显示控制区域，然后移除元素
-        setTimeout(() => {
-            // 移除临时元素
-            tempVideo.remove();
-        }, 1000);
-        
-        console.log('已尝试触发iOS设备原生AirPlay控制');
-    } catch (err) {
-        console.error('显示iOS AirPlay控制失败:', err);
-        alert('无法自动显示AirPlay控制，请使用系统控制中心选择音频输出');
-    }
 }
 
 /**
@@ -1347,46 +1161,55 @@ function playNextAudio() {
  * 停止播放
  */
 function stopPlayback() {
-    // 停止音频
+    // 停止音频播放
     audioPlayer.pause();
     audioPlayer.currentTime = 0;
     
-    // 清除定时器
+    // 重置播放状态
+    isPlaying = false;
+    isPaused = false;
+    
+    // 清除所有计时器
     if (playTimer) {
         clearTimeout(playTimer);
         playTimer = null;
     }
     
-    // 停止进度更新
     if (progressUpdateInterval) {
         clearInterval(progressUpdateInterval);
         progressUpdateInterval = null;
     }
     
-    // 清理WebAudio连接
-    if (useWebAudio && audioSource) {
-        try {
-            audioSource.disconnect();
-            audioSource = null;
-        } catch (err) {
-            console.error('断开WebAudio连接失败:', err);
-        }
-        useWebAudio = false;
-    }
+    // 重置播放次数和时间变量
+    currentPlayCount = 0;
+    pausedTimestamp = 0;
+    remainingTimerTime = 0;
+    
+    // 更新播放状态显示
+    updatePlayStatus(false);
+    
+    // 更新按钮状态
+    updateButtonStates();
     
     // 重置进度条
     resetProgressBar();
     
-    // 重置状态
-    isPaused = false;
-    remainingTimerTime = 0;
-    playStartTime = null; // 重置播放开始时间
-    
-    // 更新状态
-    updatePlayStatus(false);
-    
-    // 释放唤醒锁
+    // 释放屏幕唤醒锁
     releaseWakeLock();
+    
+    // 移除媒体会话的激活状态
+    if ('mediaSession' in navigator) {
+        navigator.mediaSession.playbackState = 'none';
+    }
+    
+    // 更新设备信息（停止播放后）
+    setTimeout(() => {
+        // 在停止后更新设备信息
+        if (document.getElementById('audioDeviceInfo')) {
+            currentAudioDevice = "设备检测需要播放音频";
+            updateAudioDeviceDisplay();
+        }
+    }, 500);
 }
 
 /**
@@ -1530,30 +1353,27 @@ function updateAudioDuration() {
 }
 
 /**
- * 更新进度条
+ * 更新进度条显示
  */
 function updateProgressBar() {
     if (!isPlaying) return;
     
     const currentTime = audioPlayer.currentTime;
-    const duration = audioPlayer.duration;
+    const duration = audioPlayer.duration || 0;
     
-    // 更新进度条填充
-    if (duration) {
-        const progressPercent = (currentTime / duration) * 100;
-        progressFill.style.width = `${progressPercent}%`;
+    if (duration > 0) {
+        // 更新进度条填充
+        const progressPercentage = (currentTime / duration) * 100;
+        progressFill.style.width = `${progressPercentage}%`;
+        
+        // 更新时间显示
+        currentTimeEl.textContent = formatTime(currentTime);
+        totalTimeEl.textContent = formatTime(duration);
     }
     
-    // 更新当前时间显示
-    currentTimeEl.textContent = formatTime(currentTime);
-    
-    // 更新媒体会话的播放位置信息
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.setPositionState({
-            duration: duration || 0,
-            position: currentTime || 0,
-            playbackRate: audioPlayer.playbackRate || 1
-        });
+    // 同时检查音频设备状态（每5秒检查一次以避免频繁更新）
+    if (Math.floor(currentTime) % 5 === 0 && Math.floor(currentTime) !== 0) {
+        detectAudioDevice();
     }
 }
 
@@ -2314,147 +2134,395 @@ function copyShareUrl() {
 }
 
 /**
- * 初始化音频输出检测
- * 检测AirPlay连接状态并设置WebAudio
+ * 初始化音频设备检测功能
+ * 用于检测当前连接的音频输出设备（如扬声器、耳机等）
  */
-function initAudioOutput() {
-    // 初始化WebAudio Context（仅在需要时）
-    if (!audioContext && window.AudioContext) {
-        try {
-            audioContext = new AudioContext();
-            console.log('WebAudio Context初始化成功');
-        } catch (e) {
-            console.warn('WebAudio Context初始化失败:', e);
-        }
-    }
-    
-    // 检测设备是否支持mediaDevices API
-    if (navigator.mediaDevices && navigator.mediaDevices.ondevicechange !== undefined) {
-        // 设置设备变化监听
-        navigator.mediaDevices.ondevicechange = checkAudioOutputDevices;
-        
-        // 首次检查可用设备
-        checkAudioOutputDevices();
-    } else {
-        console.log('当前浏览器不支持mediaDevices API，无法检测AirPlay连接');
-        
-        // 在iOS设备上添加备用检测
-        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
-            // iOS设备上使用WebAudio作为最佳实践
-            setupWebAudioForIOS();
-        }
-    }
-}
-
-/**
- * 检查音频输出设备，检测AirPlay连接
- */
-async function checkAudioOutputDevices() {
-    // 检查是否支持获取设备列表
-    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-        console.log('当前浏览器不支持enumerateDevices');
-        return;
-    }
-    
+function initAudioDeviceDetection() {
     try {
-        // 更新状态为"正在检测"
-        updateAirplayStatus('检测中', 'connecting');
+        // 创建音频上下文
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
         
-        // 获取所有设备
-        const devices = await navigator.mediaDevices.enumerateDevices();
+        // 检测设备变化
+        detectAudioDevice();
         
-        // 筛选出音频输出设备
-        const audioOutputDevices = devices.filter(device => device.kind === 'audiooutput');
+        // 监听设备变化事件
+        if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+            navigator.mediaDevices.addEventListener('devicechange', function() {
+                console.log('设备变化被检测到');
+                detectAudioDevice();
+            });
+        }
         
-        // 查找AirPlay设备（通常名称中包含"AirPlay"或特定标识）
-        const airplayDevice = audioOutputDevices.find(device => 
-            device.label.includes('AirPlay') || 
-            device.label.includes('Apple TV') ||
-            device.label.includes('外部音频设备')
-        );
-        
-        if (airplayDevice) {
-            console.log('检测到AirPlay设备:', airplayDevice.label);
-            airPlayDevice = airplayDevice;
-            isAirPlayConnected = true;
-            updateAirplayStatus('已连接', 'connected');
-            currentAudioOutput.textContent = airplayDevice.label;
-            
-            // 如果当前有音频在播放，尝试切换到AirPlay设备
-            if (isPlaying && !isPaused) {
-                switchToAirPlayOutput();
+        // iOS Safari不支持devicechange事件，使用页面可见性变化作为触发点
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                console.log('页面可见性变化，重新检测音频设备');
+                detectAudioDevice();
             }
+        });
+        
+        // 额外添加音频播放状态变化的监听，因为iOS通常在播放时才会触发设备变化
+        audioPlayer.addEventListener('play', function() {
+            setTimeout(detectAudioDevice, 500); // 延迟检测，等待系统音频路由完成
+        });
+        
+        // 监听iOS上的耳机插拔事件
+        setupIOSDeviceChangeListeners();
+        
+    } catch (error) {
+        console.error('初始化音频设备检测失败:', error);
+    }
+}
+
+/**
+ * 为iOS设备设置特别的事件监听
+ * 主要用于检测耳机插拔事件
+ */
+function setupIOSDeviceChangeListeners() {
+    // 检查是否为iOS设备
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    if (!isIOS) return;
+    
+    // 为音频播放器添加特殊事件
+    // iOS设备在耳机插拔时会触发音频播放暂停事件
+    audioPlayer.addEventListener('pause', function(event) {
+        // 检查是否为系统自动暂停（如拔出耳机）
+        if (isPlaying && !isPaused) {
+            console.log('检测到可能的设备变化导致的系统暂停');
+            
+            // 在短暂延迟后检测设备
+            setTimeout(() => {
+                detectAudioDevice();
+                
+                // 如果设备变化，显示提示
+                const deviceInfoEl = document.getElementById('audioDeviceInfo');
+                if (deviceInfoEl) {
+                    deviceInfoEl.classList.add('device-changed');
+                    setTimeout(() => {
+                        deviceInfoEl.classList.remove('device-changed');
+                    }, 3000);
+                }
+                
+                // 在耳机拔出后，iOS通常会将声音路由到内置扬声器
+                // 在这里添加自定义处理逻辑
+                handleIOSDeviceChange();
+            }, 500);
+        }
+    });
+    
+    // 音频停止事件
+    audioPlayer.addEventListener('ended', function() {
+        // 检测设备，以确保显示的设备信息是准确的
+        setTimeout(detectAudioDevice, 300);
+    });
+    
+    // 在页面恢复活动状态时也检测设备
+    window.addEventListener('focus', function() {
+        setTimeout(detectAudioDevice, 300);
+    });
+    
+    // 监听屏幕方向变化事件
+    window.addEventListener('orientationchange', function() {
+        // 在方向变化后也检测设备，因为用户可能在旋转屏幕时插拔耳机
+        setTimeout(detectAudioDevice, 500);
+    });
+}
+
+/**
+ * 处理iOS设备变化
+ * 特别是处理耳机拔出后的行为
+ */
+function handleIOSDeviceChange() {
+    // 检查当前播放状态
+    if (!isPlaying) return;
+    
+    // 在设备变化后，默认情况下以合理的方式处理播放
+    // 可以根据需求调整此处逻辑
+    
+    // 方案1：在设备变化后自动恢复播放
+    if (audioPlayer.paused && isPlaying && !isPaused) {
+        // 显示一个设备变化通知
+        showDeviceChangeNotification();
+        
+        // 短暂延迟后自动恢复播放
+        setTimeout(() => {
+            // 可能需要重新创建音频上下文
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume().then(() => {
+                    console.log('耳机变化后，音频上下文已恢复');
+                });
+            }
+            
+            // 恢复播放
+            audioPlayer.play().catch(error => {
+                console.error('设备变化后无法自动恢复播放:', error);
+            });
+        }, 1000);
+    }
+    
+    /* 
+    // 方案2：在设备变化后暂停播放，等待用户手动继续
+    if (audioPlayer.paused && isPlaying && !isPaused) {
+        // 设置为暂停状态
+        isPaused = true;
+        updateButtonStates();
+        showDeviceChangeNotification();
+    }
+    */
+}
+
+/**
+ * 显示设备变化通知
+ */
+function showDeviceChangeNotification() {
+    // 检查是否已存在通知元素
+    let notificationEl = document.getElementById('deviceChangeNotification');
+    
+    if (!notificationEl) {
+        // 创建通知元素
+        notificationEl = document.createElement('div');
+        notificationEl.id = 'deviceChangeNotification';
+        notificationEl.className = 'device-notification';
+        document.body.appendChild(notificationEl);
+    }
+    
+    // 设置通知内容
+    notificationEl.innerHTML = `
+        <div class="notification-content">
+            <div class="notification-icon">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M12,1C7,1 3,5 3,10V17A3,3 0 0,0 6,20H9V12H5V10A7,7 0 0,1 12,3A7,7 0 0,1 19,10V12H15V20H18A3,3 0 0,0 21,17V10C21,5 16.97,1 12,1Z" />
+                </svg>
+            </div>
+            <div class="notification-text">
+                <p>检测到音频设备变化</p>
+                <p class="device-name">当前: ${currentAudioDevice}</p>
+            </div>
+        </div>
+    `;
+    
+    // 显示通知
+    notificationEl.classList.add('show');
+    
+    // 几秒后自动隐藏
+    setTimeout(() => {
+        notificationEl.classList.remove('show');
+    }, 5000);
+}
+
+/**
+ * 检测当前连接的音频设备
+ * 在iOS设备上，我们使用一些特征来推断当前使用的音频设备
+ */
+function detectAudioDevice() {
+    try {
+        // 创建一个空的HTML元素来显示设备信息
+        if (!document.getElementById('audioDeviceInfo')) {
+            const deviceInfoContainer = document.createElement('div');
+            deviceInfoContainer.id = 'audioDeviceInfo';
+            deviceInfoContainer.className = 'audio-device-info';
+            
+            // 在播放控制区添加设备信息显示
+            const playControlsSection = document.querySelector('.play-controls');
+            if (playControlsSection) {
+                playControlsSection.appendChild(deviceInfoContainer);
+            }
+        }
+        
+        // 获取设备信息
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+            navigator.mediaDevices.enumerateDevices()
+                .then(function(devices) {
+                    console.log('检测到的设备:', devices);
+                    let audioOutputDevices = devices.filter(device => device.kind === 'audiooutput');
+                    updateAudioDeviceInfo(audioOutputDevices);
+                })
+                .catch(function(err) {
+                    console.error('无法枚举设备:', err);
+                    updateAudioDeviceInfo([]);
+                });
         } else {
-            console.log('未检测到AirPlay设备');
-            airPlayDevice = null;
-            isAirPlayConnected = false;
-            updateAirplayStatus('未连接', '');
-            currentAudioOutput.textContent = '手机扬声器';
-            
-            // 如果之前使用的是AirPlay，现在切换回默认设备
-            if (useWebAudio) {
-                switchToDefaultOutput();
-            }
+            // 如果API不可用，尝试使用iOS特定方法检测
+            detectIOSAudioDevice();
         }
-    } catch (err) {
-        console.error('检测音频设备时出错:', err);
-        updateAirplayStatus('检测失败', '');
+    } catch (error) {
+        console.error('检测音频设备失败:', error);
+        updateAudioDeviceInfo([]);
     }
 }
 
 /**
- * 更新AirPlay状态显示
- * @param {string} text - 状态文本
- * @param {string} className - 状态类名
+ * iOS设备音频输出检测
+ * 使用WebAudio特性间接检测设备
  */
-function updateAirplayStatus(text, className) {
-    if (airplayStatus) {
-        airplayStatus.textContent = text;
-        airplayStatus.className = 'status-indicator';
-        if (className) {
-            airplayStatus.classList.add(className);
-        }
-    }
-}
-
-/**
- * 为iOS设备设置WebAudio
- * 在iOS上WebAudio API通常更可靠
- */
-function setupWebAudioForIOS() {
-    // 仅在iOS设备上执行
-    if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+function detectIOSAudioDevice() {
+    // 在iOS上，我们无法直接获取设备信息
+    // 但可以通过一些特征来推断当前的音频输出设备
+    
+    // 检查是否在iOS设备上
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    
+    if (!isIOS) {
+        currentAudioDevice = "非iOS设备";
+        updateAudioDeviceDisplay();
         return;
     }
     
-    console.log('iOS设备检测，设置WebAudio');
-    
-    // 在用户交互后初始化AudioContext
-    document.addEventListener('touchstart', initIOSAudioContext, { once: true });
-    
-    // 显示iOS专用提示
-    const note = document.createElement('p');
-    note.className = 'note ios-audio-note';
-    note.textContent = '注意: iOS设备需要手动切换AirPlay输出';
-    audioOutputGroup.appendChild(note);
-    
-    // 更改按钮文本
-    if (audioOutputBtn) {
-        audioOutputBtn.textContent = '显示AirPlay控制';
+    // 创建一个短暂的音频节点测试
+    try {
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        
+        // 如果上下文被挂起，尝试恢复它
+        if (audioContext.state === 'suspended') {
+            audioContext.resume().then(() => {
+                console.log('音频上下文已恢复');
+                performIOSDeviceCheck();
+            });
+        } else {
+            performIOSDeviceCheck();
+        }
+    } catch (error) {
+        console.error('iOS设备检测错误:', error);
+        currentAudioDevice = "未知设备";
+        updateAudioDeviceDisplay();
     }
 }
 
 /**
- * 初始化iOS AudioContext
- * 需要在用户交互后初始化
+ * 执行iOS设备检查的实际逻辑
  */
-function initIOSAudioContext() {
-    if (!audioContext && window.AudioContext) {
-        try {
-            audioContext = new AudioContext();
-            console.log('iOS WebAudio Context初始化成功');
-        } catch (e) {
-            console.warn('iOS WebAudio Context初始化失败:', e);
+function performIOSDeviceCheck() {
+    // 创建一个临时的音频节点
+    const oscillator = audioContext.createOscillator();
+    const analyser = audioContext.createAnalyser();
+    
+    // 连接节点但不实际产生声音
+    oscillator.connect(analyser);
+    analyser.connect(audioContext.destination);
+    
+    // 检查音频参数来推断设备类型
+    if ('sinkId' in AudioContext.prototype) {
+        // 这个API目前在iOS上不可用，但未来可能会支持
+        audioContext.sinkId.then(id => {
+            if (id) {
+                console.log('音频输出设备ID:', id);
+                // 根据ID确定设备类型
+                currentAudioDevice = "检测到的设备: " + id;
+            } else {
+                currentAudioDevice = "内置扬声器";
+            }
+            updateAudioDeviceDisplay();
+        });
+    } else {
+        // 尝试使用其他方法进行检测
+        
+        // 在iOS上，通过分析当前音频上下文状态和用户交互来推断
+        if (audioPlayer.paused) {
+            // 如果播放器暂停，无法准确检测
+            currentAudioDevice = "设备检测需要播放音频";
+        } else {
+            // 尝试通过WebAudio特性推断
+            // 在iOS 14+，如果连接了耳机，某些音频特性会不同
+            
+            // 创建一个检测器变量
+            let isHeadphonesConnected = false;
+            
+            // 分析频率数据
+            const frequencyData = new Uint8Array(analyser.frequencyBinCount);
+            analyser.getByteFrequencyData(frequencyData);
+            
+            // 获取更多音频特性指标
+            const audioState = {
+                sampleRate: audioContext.sampleRate,
+                bufferSize: analyser.frequencyBinCount,
+                maxChannelCount: audioContext.destination.maxChannelCount,
+                channelCount: audioContext.destination.channelCount,
+                channelInterpretation: audioContext.destination.channelInterpretation
+            };
+            
+            console.log('音频特性:', audioState);
+            
+            // 尝试根据音频特性判断
+            // 1. 在AirPods和某些耳机上，最大通道数通常不同
+            if (audioState.maxChannelCount > 2) {
+                isHeadphonesConnected = true;
+            }
+            
+            // 2. 判断是否为AirPods或蓝牙耳机
+            const isAirPodsOrBluetooth = audioState.sampleRate === 44100 && 
+                                       audioState.channelCount === 2 &&
+                                       audioState.maxChannelCount > 1;
+            
+            if (isAirPodsOrBluetooth) {
+                isHeadphonesConnected = true;
+            }
+            
+            // 设置当前设备
+            if (isHeadphonesConnected) {
+                currentAudioDevice = "耳机或蓝牙设备";
+            } else {
+                currentAudioDevice = "内置扬声器";
+            }
         }
+        
+        updateAudioDeviceDisplay();
+    }
+    
+    // 断开临时节点
+    analyser.disconnect();
+}
+
+/**
+ * 更新音频设备信息
+ * @param {Array} devices 设备列表
+ */
+function updateAudioDeviceInfo(devices) {
+    if (devices && devices.length > 0) {
+        // 检查是否有默认设备
+        const defaultDevice = devices.find(device => device.deviceId === 'default');
+        
+        if (defaultDevice) {
+            currentAudioDevice = defaultDevice.label || "默认音频设备";
+        } else if (devices.length === 1) {
+            currentAudioDevice = devices[0].label || "未知音频设备";
+        } else {
+            // 如果有多个设备，尝试确定哪个是活动的
+            // 通常第一个非默认设备是当前活动的
+            const nonDefaultDevice = devices.find(device => device.deviceId !== 'default');
+            if (nonDefaultDevice) {
+                currentAudioDevice = nonDefaultDevice.label || "未知音频设备";
+            } else {
+                currentAudioDevice = `检测到 ${devices.length} 个音频设备`;
+            }
+        }
+    } else {
+        // 没有检测到设备或API不支持
+        detectIOSAudioDevice();
+        return;
+    }
+    
+    // 更新显示
+    updateAudioDeviceDisplay();
+}
+
+/**
+ * 更新音频设备显示
+ */
+function updateAudioDeviceDisplay() {
+    const deviceInfoElement = document.getElementById('audioDeviceInfo');
+    if (deviceInfoElement) {
+        deviceInfoElement.innerHTML = `
+            <div class="device-icon">
+                <svg viewBox="0 0 24 24" width="18" height="18">
+                    <path fill="currentColor" d="M12,1C7,1 3,5 3,10V17A3,3 0 0,0 6,20H9V12H5V10A7,7 0 0,1 12,3A7,7 0 0,1 19,10V12H15V20H18A3,3 0 0,0 21,17V10C21,5 16.97,1 12,1Z" />
+                </svg>
+            </div>
+            <span>当前输出设备: ${currentAudioDevice}</span>
+        `;
     }
 } 

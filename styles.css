@@ -490,7 +490,7 @@ footer {
     }
 }
 
-/* 音量控制 */
+/* 音量控制样式 */
 .volume-control {
     display: flex;
     align-items: center;
@@ -531,58 +531,6 @@ footer {
     text-align: right;
     font-size: 14px;
     color: #666;
-}
-
-/* 添加AirPlay输出控制区域样式 */
-.audio-output-control {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background-color: #f9f9f9;
-    padding: 10px;
-    border-radius: 6px;
-}
-
-.audio-output-status {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-}
-
-#currentAudioOutput {
-    font-weight: 500;
-    font-size: 15px;
-}
-
-.status-indicator {
-    font-size: 12px;
-    padding: 3px 8px;
-    border-radius: 12px;
-    margin-top: 4px;
-    background-color: #e0e0e0;
-    color: #666;
-}
-
-.status-indicator.connected {
-    background-color: #dff6dd;
-    color: #107c10;
-}
-
-.status-indicator.connecting {
-    background-color: #fff4ce;
-    color: #9d5d00;
-}
-
-/* iOS专用提示样式 */
-.ios-audio-note {
-    color: #0070c9;
-    font-weight: 500;
-    margin-top: 8px;
-    border-left: 3px solid #0070c9;
-    padding-left: 10px;
-    background-color: #f0f7ff;
-    padding: 5px 10px;
-    border-radius: 0 4px 4px 0;
 }
 
 /* 播放列表管理相关样式 */
@@ -889,4 +837,111 @@ footer {
     border-radius: 4px;
     font-size: 14px;
     color: #666;
+}
+
+/* 音频设备信息样式 */
+.audio-device-info {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    margin-top: 15px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    font-size: 14px;
+    color: #555;
+    border-left: 4px solid #2196f3;
+    transition: all 0.3s ease;
+}
+
+.audio-device-info .device-icon {
+    margin-right: 10px;
+    color: #2196f3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.audio-device-info span {
+    font-weight: 500;
+}
+
+/* 设备变化高亮效果 */
+.audio-device-info.device-changed {
+    background-color: rgba(33, 150, 243, 0.15);
+    border-left-color: #ff9800;
+    animation: pulse 1.5s ease-in-out;
+}
+
+.audio-device-info.device-changed .device-icon {
+    color: #ff9800;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+}
+
+/* 设备变化通知样式 */
+.device-notification {
+    position: fixed;
+    bottom: -100px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(33, 33, 33, 0.9);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+    width: 90%;
+    max-width: 350px;
+    opacity: 0;
+    transition: all 0.4s ease;
+}
+
+.device-notification.show {
+    bottom: 20px;
+    opacity: 1;
+}
+
+.device-notification .notification-content {
+    display: flex;
+    align-items: center;
+}
+
+.device-notification .notification-icon {
+    margin-right: 15px;
+    color: #2196f3;
+}
+
+.device-notification .notification-text {
+    flex: 1;
+}
+
+.device-notification .notification-text p {
+    margin: 0;
+    padding: 0;
+}
+
+.device-notification .device-name {
+    font-size: 13px;
+    opacity: 0.8;
+    margin-top: 4px !important;
+}
+
+/* 适配深色模式 */
+@media (prefers-color-scheme: dark) {
+    .audio-device-info {
+        background-color: rgba(255, 255, 255, 0.1);
+        color: #ddd;
+    }
+    
+    .audio-device-info.device-changed {
+        background-color: rgba(255, 165, 0, 0.2);
+    }
+    
+    .device-notification {
+        background-color: rgba(66, 66, 66, 0.95);
+    }
 } 
