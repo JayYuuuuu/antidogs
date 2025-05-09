@@ -101,40 +101,73 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /**
  * 加载音频文件
- * 从music文件夹加载所有MP3文件
+ * 从配置文件加载所有MP3文件
  */
 function loadAudioFiles() {
-    // 模拟从文件夹加载音频文件
-    // 在实际场景中，这里应该从服务器API获取文件列表
-    const fileList = [
-        '脚步加说话声.MP3',
-        '轻微噪音.MP3',
-        '连续脚步声.MP3',
-        '摔门加脚步声.MP3',
-        '拉门加脚步声.MP3',
-        '低音增强脚步声.MP3',
-        '静音.MP3'
-    ];
-    
-    // 将文件转换为对象格式并存储
-    audioFiles = fileList.map((filename, index) => {
-        return {
-            id: index + 1,
-            filename: filename,
-            path: `music/${filename}`,
-            isDefault: true,  // 标记为默认音源
-            duration: 0       // 初始时长为0，后续加载
-        };
-    });
-    
-    // 加载音频时长
-    loadAudioDurations();
-    
-    // 渲染音频列表
-    renderAudioList();
-    
-    // 渲染可选音频列表
-    renderAvailableAudioList();
+    // 从音源配置文件加载音频列表
+    fetch('music/audiolist.json')
+        .then(response => {
+            // 检查响应状态
+            if (!response.ok) {
+                throw new Error('无法加载音频列表配置文件');
+            }
+            return response.json();
+        })
+        .then(data => {
+            // 将文件转换为对象格式并存储
+            audioFiles = data.audioFiles.map((filename, index) => {
+                return {
+                    id: index + 1,
+                    filename: filename,
+                    path: `music/${filename}`,
+                    isDefault: true,  // 标记为默认音源
+                    duration: 0       // 初始时长为0，后续加载
+                };
+            });
+            
+            // 加载音频时长
+            loadAudioDurations();
+            
+            // 渲染音频列表
+            renderAudioList();
+            
+            // 渲染可选音频列表
+            renderAvailableAudioList();
+        })
+        .catch(error => {
+            console.error('加载音频列表失败:', error);
+            
+            // 加载失败时使用硬编码的默认列表作为备份
+            const defaultFileList = [
+                '脚步加说话声.MP3',
+                '轻微噪音.MP3',
+                '连续脚步声.MP3',
+                '摔门加脚步声.MP3',
+                '拉门加脚步声.MP3',
+                '低音增强脚步声.MP3',
+                '静音.MP3'
+            ];
+            
+            // 将默认文件转换为对象格式并存储
+            audioFiles = defaultFileList.map((filename, index) => {
+                return {
+                    id: index + 1,
+                    filename: filename,
+                    path: `music/${filename}`,
+                    isDefault: true,  // 标记为默认音源
+                    duration: 0       // 初始时长为0，后续加载
+                };
+            });
+            
+            // 加载音频时长
+            loadAudioDurations();
+            
+            // 渲染音频列表
+            renderAudioList();
+            
+            // 渲染可选音频列表
+            renderAvailableAudioList();
+        });
 }
 
 /**

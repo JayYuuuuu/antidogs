@@ -1,5 +1,5 @@
 // 缓存名称 - 更新版本号以触发缓存更新
-const CACHE_NAME = 'anti-noise-dog-v3';
+const CACHE_NAME = 'anti-noise-dog-v4';
 
 // 需要缓存的资源列表
 const CACHE_ASSETS = [
@@ -23,7 +23,7 @@ const CACHE_ASSETS = [
   './icons/splash-1242x2208.png',
   './icons/splash-1125x2436.png',
   './icons/splash-1242x2688.png'
-  // 不缓存音频文件，因为体积可能较大，且用户可能会上传新的音频
+  // 不缓存音频文件和音频列表配置，因为需要实时更新
 ];
 
 // 安装Service Worker时缓存资源
@@ -71,12 +71,47 @@ self.addEventListener('fetch', event => {
   // 忽略POST请求等
   if (event.request.method !== 'GET') return;
   
+  // 对于audiolist.json文件，始终使用网络请求，失败后才使用缓存
+  if (event.request.url.includes('audiolist.json')) {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // 克隆响应（因为响应是流，只能使用一次）
+          const responseToCache = response.clone();
+          
+          // 更新缓存中的版本
+          caches.open(CACHE_NAME)
+            .then(cache => {
+              cache.put(event.request, responseToCache);
+            });
+          
+          return response;
+        })
+        .catch(() => {
+          console.log('从缓存加载audiolist.json');
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+  
   // 音频文件使用网络优先策略
   if (event.request.url.includes('/music/') || 
       event.request.url.match(/\.(mp3|wav|ogg)$/i)) {
     // 网络优先，失败后使用缓存
     event.respondWith(
       fetch(event.request)
+        .then(response => {
+          // 如果是新的音频文件，也更新缓存
+          if (!event.request.url.endsWith('.json')) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME)
+              .then(cache => {
+                cache.put(event.request, responseToCache);
+              });
+          }
+          return response;
+        })
         .catch(() => caches.match(event.request))
     );
     return;
