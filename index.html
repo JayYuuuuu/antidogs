@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>反击噪音狗</title>
+    <!-- PWA相关元数据 -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2196f3">
+    
+    <!-- 允许在iOS设备上后台播放音频 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="反击噪音狗">
+    <!-- 支持添加到主屏幕 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <!-- 防止屏幕自动休眠 -->
+    <meta name="format-detection" content="telephone=no">
+    <!-- 允许音频播放跟随屏幕旋转 -->
+    <meta name="screen-orientation" content="portrait">
+    
+    <!-- 微信分享相关元标签 -->
+    <meta property="og:title" content="反击噪音狗 - 对抗噪音干扰的利器">
+    <meta property="og:description" content="一款专门应对噪音干扰的应用，支持多种音源播放、自定义序列、后台播放和定时功能，让你轻松反击噪音困扰。">
+    <meta property="og:image" content="icons/share-image.png">
+    <meta property="og:url" content="https://您的网站域名/反击噪音狗/">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="反击噪音狗">
+    
+    <!-- 微信特定的分享设置 -->
+    <meta itemprop="name" content="反击噪音狗 - 对抗噪音干扰的利器">
+    <meta itemprop="description" content="一款专门应对噪音干扰的应用，支持多种音源播放、自定义序列、后台播放和定时功能，让你轻松反击噪音困扰。">
+    <meta itemprop="image" content="icons/share-image.png">
+    
+    <!-- iOS设备专用图标 -->
+    <link rel="apple-touch-icon" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-192x192.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/icon-152x152.png">
+    
+    <!-- iOS启动屏幕 -->
+    <link rel="apple-touch-startup-image" href="icons/splash-640x1136.png" media="(device-width: 320px) and (device-height: 568px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="icons/splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
+    <link rel="apple-touch-startup-image" href="icons/splash-1242x2208.png" media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="icons/splash-1125x2436.png" media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
+    <link rel="apple-touch-startup-image" href="icons/splash-1242x2688.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)">
+    
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>反击噪音狗</h1>
+            <div class="header-actions">
+                <button id="shareButton" class="share-btn" title="分享应用">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z" />
+                    </svg>
+                </button>
+            </div>
+        </header>
+        
+        <main>
+            <!-- 音源列表 -->
+            <section class="sound-list">
+                <h2>可用音源</h2>
+                <div id="audioList" class="audio-items">
+                    <!-- JavaScript将动态填充此处 -->
+                </div>
+                
+                <div class="add-audio">
+                    <label for="uploadAudio" class="upload-btn">
+                        <span>+ 添加新音源</span>
+                        <input type="file" id="uploadAudio" accept=".mp3" multiple>
+                    </label>
+                </div>
+            </section>
+            
+            <!-- 播放控制区 -->
+            <section class="play-controls">
+                <h2>播放控制</h2>
+                
+                <div class="control-group">
+                    <label for="playMode">播放模式：</label>
+                    <select id="playMode">
+                        <option value="single">单个播放</option>
+                        <option value="sequence">顺序播放</option>
+                        <option value="auto-next">自动播放下一首</option>
+                    </select>
+                </div>
+                
+                <div class="control-group" id="sequenceControlGroup" style="display: none;">
+                    <label>自定义播放顺序：</label>
+                    <div class="sequence-panel">
+                        <div class="available-sources">
+                            <p class="sub-label">点击添加到播放序列：</p>
+                            <div id="availableAudioList" class="audio-select-list">
+                                <!-- JavaScript将动态填充音频选项 -->
+                            </div>
+                        </div>
+                        
+                        <div class="sequence-preview">
+                            <p class="sub-label">播放序列（按顺序播放）：</p>
+                            <div id="sequencePreview" class="sequence-container">
+                                <!-- JavaScript将动态填充播放序列 -->
+                            </div>
+                            <div class="sequence-actions">
+                                <button id="clearSequence" class="action-btn" title="清空序列">清空</button>
+                                <button id="saveSequence" class="action-btn" title="保存播放列表">保存</button>
+                                <button id="loadSequence" class="action-btn" title="加载播放列表">加载</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="playCount">播放次数：</label>
+                    <div class="number-input">
+                        <button class="decrease" type="button">-</button>
+                        <input type="number" id="playCount" min="1" value="1">
+                        <button class="increase" type="button">+</button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="playDuration">播放时间（分钟）：</label>
+                    <div class="number-input">
+                        <button class="decrease" type="button">-</button>
+                        <input type="number" id="playDuration" min="0" value="0">
+                        <button class="increase" type="button">+</button>
+                    </div>
+                    <p class="note">设置为0表示不限时间</p>
+                </div>
+                
+                <div class="control-group">
+                    <label for="volumeControl">音量控制：</label>
+                    <div class="volume-control">
+                        <input type="range" id="volumeControl" min="0" max="1" step="0.01" value="0.7">
+                        <span id="volumeValue">70%</span>
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button id="playButton" class="btn primary">开始播放</button>
+                    <button id="pauseButton" class="btn warning" disabled>暂停播放</button>
+                    <button id="stopButton" class="btn secondary" disabled>停止播放</button>
+                </div>
+            </section>
+            
+            <!-- 当前播放状态 -->
+            <section class="now-playing" id="nowPlaying" style="display: none;">
+                <h2>当前播放</h2>
+                <div class="play-info">
+                    <p id="currentAudioName">无</p>
+                    <p id="playStatus">已停止</p>
+                    
+                    <!-- 进度显示区域 -->
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div id="progressFill" class="progress-fill"></div>
+                        </div>
+                        <div class="progress-time">
+                            <span id="currentTime">00:00</span>
+                            <span id="totalTime">00:00</span>
+                        </div>
+                    </div>
+                    
+                    <p id="remainingTime"></p>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>© 2023 反击噪音狗</p>
+        </footer>
+    </div>
+    
+    <!-- 音频元素 -->
+    <audio id="audioPlayer" style="display: none;"></audio>
+    
+    <!-- 保存播放列表对话框 -->
+    <div id="savePlaylistDialog" class="playlist-dialog">
+        <div class="dialog-content">
+            <h3 class="dialog-title">保存播放列表</h3>
+            <div class="dialog-form">
+                <input type="text" id="playlistName" placeholder="输入播放列表名称" maxlength="30">
+            </div>
+            <div class="dialog-buttons">
+                <button class="dialog-btn cancel" id="cancelSavePlaylist">取消</button>
+                <button class="dialog-btn save" id="confirmSavePlaylist">保存</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 加载播放列表对话框 -->
+    <div id="loadPlaylistDialog" class="playlist-dialog">
+        <div class="dialog-content">
+            <h3 class="dialog-title">选择播放列表</h3>
+            <div id="playlistList" class="playlist-list">
+                <!-- JavaScript将动态填充 -->
+            </div>
+            <div class="dialog-buttons">
+                <button class="dialog-btn cancel" id="cancelLoadPlaylist">取消</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加分享功能 -->
+    <div id="shareDialog" class="share-dialog">
+        <div class="dialog-content">
+            <h3 class="dialog-title">分享应用</h3>
+            <div class="share-options">
+                <p>扫描下方二维码，或复制链接分享给好友：</p>
+                <div id="qrCode" class="qr-code"></div>
+                <div class="share-url-container">
+                    <input id="shareUrl" type="text" readonly value="" class="share-url">
+                    <button id="copyShareUrl" class="copy-url-btn">复制</button>
+                </div>
+                <div class="share-tips">
+                    <p>在微信中，您也可以点击右上角的"..."按钮，选择"分享"将应用分享给好友或分享到朋友圈。</p>
+                </div>
+            </div>
+            <div class="dialog-buttons">
+                <button class="dialog-btn cancel" id="closeShareDialog">关闭</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 在页面末尾添加Service Worker注册脚本 -->
+    <script>
+        // 注册Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('Service Worker 注册成功:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker 注册失败:', error);
+                    });
+            });
+        }
+        
+        // 处理"添加到主屏幕"提示
+        let deferredPrompt;
+        const addToHomeBtn = document.createElement('button');
+        addToHomeBtn.style.display = 'none';
+        addToHomeBtn.className = 'add-to-home-btn';
+        addToHomeBtn.textContent = '添加到主屏幕';
+        
+        // 监听beforeinstallprompt事件
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // 阻止Chrome 67及更早版本自动显示安装提示
+            e.preventDefault();
+            // 保存事件以便稍后触发
+            deferredPrompt = e;
+            // 显示添加到主屏幕按钮
+            addToHomeBtn.style.display = 'block';
+            
+            // 添加按钮点击处理程序
+            addToHomeBtn.addEventListener('click', (e) => {
+                // 隐藏按钮
+                addToHomeBtn.style.display = 'none';
+                // 显示安装提示
+                deferredPrompt.prompt();
+                // 等待用户响应提示
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        console.log('用户接受安装提示');
+                    } else {
+                        console.log('用户拒绝安装提示');
+                    }
+                    deferredPrompt = null;
+                });
+            });
+            
+            // 将按钮添加到页面
+            document.querySelector('.container').appendChild(addToHomeBtn);
+        });
+        
+        // 处理URL参数
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const action = urlParams.get('action');
+            
+            if (action === 'play') {
+                // 如果URL参数包含action=play，自动开始播放
+                setTimeout(() => {
+                    const playButton = document.getElementById('playButton');
+                    if (playButton && !playButton.disabled) {
+                        playButton.click();
+                    }
+                }, 1000);
+            }
+        });
+    </script>
+    
+    <script src="script.js"></script>
+    
+    <!-- 微信JSSDK -->
+    <script>
+        // 检测是否在微信环境中
+        function isWechat() {
+            return /MicroMessenger/i.test(navigator.userAgent);
+        }
+        
+        // 当页面加载完成后
+        document.addEventListener('DOMContentLoaded', function() {
+            // 如果在微信环境中
+            if (isWechat()) {
+                // 创建微信分享提示元素
+                const shareHint = document.createElement('div');
+                shareHint.className = 'wechat-share-hint';
+                shareHint.textContent = '点击右上角"..."按钮，选择"分享"即可将应用分享给好友或分享到朋友圈';
+                
+                // 设置样式
+                shareHint.style.position = 'fixed';
+                shareHint.style.bottom = '20px';
+                shareHint.style.left = '50%';
+                shareHint.style.transform = 'translateX(-50%)';
+                shareHint.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+                shareHint.style.color = 'white';
+                shareHint.style.padding = '10px 15px';
+                shareHint.style.borderRadius = '20px';
+                shareHint.style.fontSize = '14px';
+                shareHint.style.textAlign = 'center';
+                shareHint.style.zIndex = '1000';
+                shareHint.style.maxWidth = '80%';
+                shareHint.style.boxShadow = '0 2px 5px rgba(0, 0, 0, 0.2)';
+                
+                // 添加到页面上
+                document.body.appendChild(shareHint);
+                
+                // 5秒后自动消失
+                setTimeout(() => {
+                    shareHint.style.opacity = '0';
+                    shareHint.style.transition = 'opacity 0.5s';
+                    
+                    // 过渡完成后移除元素
+                    setTimeout(() => {
+                        if (shareHint.parentNode) {
+                            shareHint.parentNode.removeChild(shareHint);
+                        }
+                    }, 500);
+                }, 5000);
+                
+                // 如果有微信JSSDK配置，可以在这里添加
+                // 注意：需要在微信公众平台注册并获取appId等信息
+                if (typeof wx !== 'undefined') {
+                    wx.config({
+                        debug: false,
+                        appId: '你的AppID',
+                        timestamp: 0, // 需要后端生成
+                        nonceStr: '', // 需要后端生成
+                        signature: '', // 需要后端生成
+                        jsApiList: [
+                            'updateAppMessageShareData',
+                            'updateTimelineShareData'
+                        ]
+                    });
+                    
+                    wx.ready(function() {
+                        // 分享给朋友
+                        wx.updateAppMessageShareData({
+                            title: '反击噪音狗 - 对抗噪音干扰的利器',
+                            desc: '一款专门应对噪音干扰的应用，支持多种音源播放、自定义序列、后台播放和定时功能，让你轻松反击噪音困扰。',
+                            link: window.location.href,
+                            imgUrl: window.location.origin + '/icons/share-image.png',
+                            success: function() {
+                                // 设置成功
+                            }
+                        });
+                        
+                        // 分享到朋友圈
+                        wx.updateTimelineShareData({
+                            title: '反击噪音狗 - 对抗噪音干扰的利器',
+                            link: window.location.href,
+                            imgUrl: window.location.origin + '/icons/share-image.png',
+                            success: function() {
+                                // 设置成功
+                            }
+                        });
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html> 

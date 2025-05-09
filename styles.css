@@ -1,0 +1,840 @@
+/* 全局样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    touch-action: manipulation;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background-color: #f5f5f5;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* 标题样式 */
+header {
+    text-align: center;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+h1 {
+    color: #4a4a4a;
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.header-actions {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.share-btn {
+    background: none;
+    border: none;
+    color: #4a4a4a;
+    cursor: pointer;
+    padding: 5px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.share-btn:active {
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    color: #4a4a4a;
+    font-size: 18px;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eaeaea;
+}
+
+/* 音源列表样式 */
+.sound-list {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.audio-items {
+    margin-bottom: 15px;
+}
+
+.audio-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 10px;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    transition: background-color 0.2s;
+}
+
+.audio-item:active {
+    background-color: #e0e0e0;
+}
+
+.audio-item .audio-name {
+    flex-grow: 1;
+    font-size: 16px;
+    margin-right: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.audio-item .audio-duration {
+    font-size: 14px;
+    color: #666;
+    margin-right: 10px;
+    white-space: nowrap;
+}
+
+.audio-item .audio-actions {
+    display: flex;
+}
+
+.audio-item .delete-btn {
+    background-color: transparent;
+    border: none;
+    color: #ff5252;
+    font-size: 20px;
+    padding: 0 8px;
+    cursor: pointer;
+}
+
+.upload-btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    text-align: center;
+    background-color: #f0f0f0;
+    border: 2px dashed #ccc;
+    border-radius: 6px;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.upload-btn:hover, .upload-btn:active {
+    background-color: #e6e6e6;
+    border-color: #999;
+}
+
+.upload-btn input[type="file"] {
+    display: none;
+}
+
+/* 播放控制区域 */
+.play-controls {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.control-group {
+    margin-bottom: 15px;
+}
+
+.control-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+select, input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    background-color: #f9f9f9;
+}
+
+.number-input {
+    display: flex;
+    align-items: center;
+}
+
+.number-input input {
+    text-align: center;
+    width: 60px;
+    margin: 0 10px;
+}
+
+.number-input button {
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+}
+
+.number-input button:active {
+    background-color: #e0e0e0;
+}
+
+.note {
+    font-size: 12px;
+    color: #888;
+    margin-top: 5px;
+}
+
+/* 时间限制状态 */
+.disabled-setting {
+    position: relative;
+}
+
+.disabled-setting::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(245, 245, 245, 0.2);
+    z-index: 1;
+    pointer-events: none;
+}
+
+.disabled-setting label {
+    color: #888;
+}
+
+.time-priority-note {
+    color: #ff9800;
+    font-weight: 500;
+}
+
+/* 顺序播放控制 */
+.sequence-panel {
+    background-color: #f9f9f9;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.sub-label {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #555;
+}
+
+.available-sources {
+    margin-bottom: 15px;
+}
+
+.audio-select-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.audio-select-item {
+    background-color: #e1f5fe;
+    border: 1px solid #81d4fa;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.audio-select-item:active {
+    background-color: #b3e5fc;
+}
+
+.audio-select-item .audio-name {
+    flex-grow: 1;
+    margin-right: 5px;
+}
+
+.audio-select-item .audio-duration {
+    font-size: 12px;
+    color: #555;
+    white-space: nowrap;
+}
+
+.sequence-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+    min-height: 40px;
+    padding: 5px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.sequence-item {
+    background-color: #e8f5e9;
+    border: 1px solid #a5d6a7;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.sequence-item .remove-btn {
+    margin-left: 5px;
+    color: #e53935;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.sequence-item .audio-num {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.sequence-item .audio-name {
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sequence-item .audio-duration {
+    margin-left: 5px;
+    margin-right: 5px;
+    font-size: 12px;
+    color: #555;
+    white-space: nowrap;
+}
+
+.sequence-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.action-btn {
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 5px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.action-btn:active {
+    background-color: #e0e0e0;
+}
+
+/* 按钮样式 */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.btn.primary {
+    background-color: #2196f3;
+    color: white;
+}
+
+.btn.primary:active {
+    background-color: #1976d2;
+}
+
+.btn.warning {
+    background-color: #ff9800;
+    color: white;
+}
+
+.btn.warning:active {
+    background-color: #f57c00;
+}
+
+.btn.secondary {
+    background-color: #f44336;
+    color: white;
+}
+
+.btn.secondary:active {
+    background-color: #d32f2f;
+}
+
+.btn:disabled {
+    background-color: #cccccc;
+    color: #666666;
+    cursor: not-allowed;
+}
+
+/* 当前播放区域 */
+.now-playing {
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.play-info {
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+}
+
+.play-info p {
+    margin-bottom: 5px;
+}
+
+#currentAudioName {
+    font-weight: bold;
+}
+
+/* 进度条样式 */
+.progress-container {
+    margin: 15px 0;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 5px;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #2196f3;
+    width: 0%;
+    border-radius: 4px;
+    transition: width 0.1s linear;
+}
+
+.progress-time {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+}
+
+/* 页脚样式 */
+footer {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    margin-top: 30px;
+}
+
+/* 媒体查询 - 小屏幕设备 */
+@media (max-width: 480px) {
+    .container {
+        padding: 15px;
+    }
+    
+    h1 {
+        font-size: 22px;
+    }
+    
+    h2 {
+        font-size: 16px;
+    }
+    
+    .btn {
+        padding: 10px 15px;
+        font-size: 15px;
+    }
+}
+
+/* 音量控制样式 */
+.volume-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.volume-control input[type="range"] {
+    flex-grow: 1;
+    height: 7px;
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    outline: none;
+}
+
+.volume-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: #2196f3;
+    cursor: pointer;
+}
+
+.volume-control input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: #2196f3;
+    cursor: pointer;
+    border: none;
+}
+
+.volume-control #volumeValue {
+    min-width: 44px;
+    text-align: right;
+    font-size: 14px;
+    color: #666;
+}
+
+/* 播放列表管理相关样式 */
+.playlist-dialog {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.playlist-dialog.visible {
+    display: flex;
+}
+
+.dialog-content {
+    background-color: white;
+    border-radius: 10px;
+    padding: 20px;
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 2px 20px rgba(0, 0, 0, 0.2);
+}
+
+.dialog-title {
+    font-size: 18px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #eaeaea;
+    padding-bottom: 10px;
+}
+
+.dialog-form {
+    margin-bottom: 20px;
+}
+
+.dialog-form input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    margin-bottom: 10px;
+}
+
+.playlist-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.playlist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.playlist-item:active {
+    background-color: #e0e0e0;
+}
+
+.playlist-item .playlist-name {
+    font-weight: 500;
+}
+
+.playlist-item .playlist-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.playlist-item .load-btn,
+.playlist-item .delete-playlist-btn {
+    background-color: transparent;
+    border: none;
+    padding: 2px 8px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.playlist-item .load-btn {
+    color: #2196f3;
+}
+
+.playlist-item .delete-playlist-btn {
+    color: #ff5252;
+}
+
+.dialog-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.dialog-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.dialog-btn.cancel {
+    background-color: #f5f5f5;
+    color: #666;
+}
+
+.dialog-btn.save {
+    background-color: #2196f3;
+    color: white;
+}
+
+/* 添加到主屏幕按钮样式 */
+.add-to-home-btn {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2196f3;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 24px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    animation: pulsate 2s infinite;
+    display: none; /* 默认隐藏，JS代码会在合适的时机显示 */
+}
+
+.add-to-home-btn:active {
+    background-color: #1976d2;
+    transform: translateX(-50%) scale(0.98);
+}
+
+@keyframes pulsate {
+    0% {
+        box-shadow: 0 4px 10px rgba(33, 150, 243, 0.2);
+    }
+    50% {
+        box-shadow: 0 4px 20px rgba(33, 150, 243, 0.5);
+    }
+    100% {
+        box-shadow: 0 4px 10px rgba(33, 150, 243, 0.2);
+    }
+}
+
+/* PWA离线状态通知 */
+.offline-notification {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background-color: #f44336;
+    color: white;
+    text-align: center;
+    padding: 10px;
+    font-weight: 500;
+    z-index: 1001;
+    display: none;
+}
+
+.offline-notification.visible {
+    display: block;
+}
+
+/* iOS中防止双击缩放 */
+* {
+    touch-action: manipulation;
+}
+
+/* 适配iOS安全区域 */
+@supports (padding: max(0px)) {
+    .container {
+        padding-left: max(20px, env(safe-area-inset-left));
+        padding-right: max(20px, env(safe-area-inset-right));
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    
+    .add-to-home-btn {
+        bottom: max(20px, env(safe-area-inset-bottom) + 10px);
+    }
+}
+
+/* 播放序列总时长样式 */
+.total-duration {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background-color: #e8f5e9;
+    border: 1px dashed #a5d6a7;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #2e7d32;
+    text-align: center;
+}
+
+/* 微信分享相关样式 */
+.wechat-share-hint {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px 15px;
+    border-radius: 20px;
+    font-size: 14px;
+    text-align: center;
+    z-index: 1000;
+    max-width: 80%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    animation: fadeIn 0.5s, fadeOut 0.5s 4.5s;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* 分享对话框样式 */
+.share-dialog {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+.share-dialog.visible {
+    display: flex;
+}
+
+.share-options {
+    margin: 15px 0;
+    text-align: center;
+}
+
+.qr-code {
+    width: 200px;
+    height: 200px;
+    margin: 15px auto;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.share-url-container {
+    display: flex;
+    margin: 15px 0;
+}
+
+.share-url {
+    flex-grow: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px 0 0 4px;
+    font-size: 14px;
+    color: #555;
+    background: #f9f9f9;
+}
+
+.copy-url-btn {
+    padding: 10px 15px;
+    background-color: #2196f3;
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.copy-url-btn:active {
+    background-color: #1976d2;
+}
+
+.share-tips {
+    margin: 15px 0;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #666;
+} 
