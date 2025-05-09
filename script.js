@@ -22,6 +22,13 @@ let wakeLock = null; // 用于保持屏幕唤醒的锁
 let audioDurations = {}; // 存储音频文件时长的对象
 let playStartTime = null; // 播放开始时间，用于备用计时
 
+// AirPlay相关变量
+let isAirPlayConnected = false; // 是否连接到AirPlay设备
+let airPlayDevice = null; // 当前连接的AirPlay设备
+let useWebAudio = false; // 是否使用WebAudio API
+let audioContext = null; // WebAudio上下文
+let audioSource = null; // WebAudio音频源
+
 // 离线状态跟踪
 let isOffline = !navigator.onLine;
 
@@ -68,6 +75,12 @@ const shareUrlInput = document.getElementById('shareUrl');
 const copyShareUrlBtn = document.getElementById('copyShareUrl');
 const qrCodeContainer = document.getElementById('qrCode');
 
+// AirPlay输出控制相关元素
+const audioOutputGroup = document.getElementById('audioOutputGroup');
+const currentAudioOutput = document.getElementById('currentAudioOutput');
+const airplayStatus = document.getElementById('airplayStatus');
+const audioOutputBtn = document.getElementById('audioOutputBtn');
+
 // 初始化应用
 document.addEventListener('DOMContentLoaded', () => {
     // 加载音频文件
@@ -97,6 +110,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 初始化分享功能
     initShareFeature();
+    
+    // 初始化音频输出检测和WebAudio
+    initAudioOutput();
 });
 
 /**
@@ -741,6 +757,27 @@ function setupEventListeners() {
         copyShareUrlBtn.addEventListener('click', copyShareUrl);
     }
     
+    // 音频输出切换按钮
+    if (audioOutputBtn) {
+        audioOutputBtn.addEventListener('click', () => {
+            // 检查是否iOS设备
+            if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+                // iOS设备显示系统控制
+                showIOSAirPlayControl();
+            } else {
+                // 其他设备重新检测音频输出
+                checkAudioOutputDevices();
+                
+                // 在非iOS设备上切换输出设备（如有）
+                if (isAirPlayConnected && airPlayDevice) {
+                    switchToAirPlayOutput();
+                } else {
+                    switchToDefaultOutput();
+                }
+            }
+        });
+    }
+    
     // 初始化时间限制状态
     updateTimeLimitedState();
 }
@@ -1030,6 +1067,11 @@ function playSingleAudio(audioId) {
             
             // 请求唤醒锁
             requestWakeLock();
+            
+            // 如果检测到AirPlay设备，尝试切换输出
+            if (isAirPlayConnected && airPlayDevice) {
+                switchToAirPlayOutput();
+            }
         })
         .catch(error => {
             // 播放失败
@@ -1037,6 +1079,177 @@ function playSingleAudio(audioId) {
             alert(`播放失败: ${error.message}`);
             updatePlayStatus(false);
         });
+}
+
+/**
+ * 切换到AirPlay输出设备
+ */
+function switchToAirPlayOutput() {
+    // 如果没有连接到AirPlay设备，直接返回
+    if (!isAirPlayConnected || !airPlayDevice) {
+        console.log('没有可用的AirPlay设备');
+        return;
+    }
+    
+    // 检查浏览器是否支持setSinkId
+    if (typeof audioPlayer.setSinkId === 'function') {
+        try {
+            audioPlayer.setSinkId(airPlayDevice.deviceId)
+                .then(() => {
+                    console.log('成功切换到AirPlay设备');
+                    currentAudioOutput.textContent = airPlayDevice.label || 'AirPlay设备';
+                })
+                .catch(err => {
+                    console.error('切换音频输出失败:', err);
+                    
+                    // 失败时尝试使用WebAudio作为备选方案
+                    useWebAudioFallback();
+                });
+        } catch (err) {
+            console.error('切换音频输出失败:', err);
+            
+            // 失败时尝试使用WebAudio作为备选方案
+            useWebAudioFallback();
+        }
+    } else {
+        // 浏览器不支持setSinkId，使用WebAudio作为备选方案
+        console.log('浏览器不支持setSinkId，尝试使用WebAudio');
+        useWebAudioFallback();
+    }
+}
+
+/**
+ * 切换回默认音频输出
+ */
+function switchToDefaultOutput() {
+    // 如果正在使用WebAudio，先停止WebAudio
+    if (useWebAudio && audioSource) {
+        try {
+            audioSource.disconnect();
+            audioSource = null;
+        } catch (err) {
+            console.error('断开WebAudio连接失败:', err);
+        }
+    }
+    
+    // 重置状态
+    useWebAudio = false;
+    
+    // 如果支持setSinkId，切换回默认设备
+    if (typeof audioPlayer.setSinkId === 'function') {
+        try {
+            audioPlayer.setSinkId('default')
+                .then(() => {
+                    console.log('成功切换回默认音频输出');
+                })
+                .catch(err => {
+                    console.error('切换到默认音频输出失败:', err);
+                });
+        } catch (err) {
+            console.error('切换到默认音频输出失败:', err);
+        }
+    }
+    
+    // 更新UI
+    currentAudioOutput.textContent = '手机扬声器';
+    updateAirplayStatus('未连接', '');
+}
+
+/**
+ * 使用WebAudio作为备选方案播放音频
+ * WebAudio API在iOS设备上更可靠，特别是在AirPlay场景下
+ */
+function useWebAudioFallback() {
+    // 确保AudioContext已初始化
+    if (!audioContext && window.AudioContext) {
+        try {
+            audioContext = new AudioContext();
+        } catch (e) {
+            console.error('创建AudioContext失败:', e);
+            return;
+        }
+    }
+    
+    if (!audioContext) {
+        console.error('AudioContext不可用');
+        return;
+    }
+    
+    // 如果audioContext处于暂停状态，恢复它
+    if (audioContext.state === 'suspended') {
+        audioContext.resume().catch(err => {
+            console.error('恢复AudioContext失败:', err);
+        });
+    }
+    
+    try {
+        // 创建媒体元素源
+        const source = audioContext.createMediaElementSource(audioPlayer);
+        
+        // 如果已有之前的source，先断开连接
+        if (audioSource) {
+            audioSource.disconnect();
+        }
+        
+        // 连接到音频目标
+        source.connect(audioContext.destination);
+        
+        // 保存音频源引用
+        audioSource = source;
+        
+        // 更新状态
+        useWebAudio = true;
+        
+        console.log('成功切换到WebAudio播放');
+    } catch (err) {
+        console.error('WebAudio设置失败:', err);
+    }
+}
+
+/**
+ * 显示iOS设备的AirPlay控制
+ * 针对iOS设备的特殊处理，显示系统原生AirPlay选择界面
+ */
+function showIOSAirPlayControl() {
+    // 检查设备是否为iOS
+    if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        console.log('非iOS设备，无法显示系统AirPlay控制');
+        return;
+    }
+    
+    try {
+        // 尝试使用WebKit特有的API显示AirPlay选择器
+        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.showAirPlayRoutePickerView) {
+            window.webkit.messageHandlers.showAirPlayRoutePickerView.postMessage({});
+            console.log('已调用iOS AirPlay选择器');
+            return;
+        }
+        
+        // 备选方案：创建视频元素触发AirPlay按钮显示
+        // 这是一个hack，利用视频元素触发原生AirPlay控制
+        const tempVideo = document.createElement('video');
+        tempVideo.setAttribute('playsinline', '');
+        tempVideo.setAttribute('controls', '');
+        tempVideo.style.position = 'fixed';
+        tempVideo.style.bottom = '0';
+        tempVideo.style.opacity = '0.01'; // 几乎不可见但仍能交互
+        tempVideo.style.pointerEvents = 'none'; // 不阻止用户交互
+        tempVideo.style.zIndex = '999999';
+        
+        // 添加到文档并尝试播放
+        document.body.appendChild(tempVideo);
+        
+        // 短暂显示控制区域，然后移除元素
+        setTimeout(() => {
+            // 移除临时元素
+            tempVideo.remove();
+        }, 1000);
+        
+        console.log('已尝试触发iOS设备原生AirPlay控制');
+    } catch (err) {
+        console.error('显示iOS AirPlay控制失败:', err);
+        alert('无法自动显示AirPlay控制，请使用系统控制中心选择音频输出');
+    }
 }
 
 /**
@@ -1148,6 +1361,17 @@ function stopPlayback() {
     if (progressUpdateInterval) {
         clearInterval(progressUpdateInterval);
         progressUpdateInterval = null;
+    }
+    
+    // 清理WebAudio连接
+    if (useWebAudio && audioSource) {
+        try {
+            audioSource.disconnect();
+            audioSource = null;
+        } catch (err) {
+            console.error('断开WebAudio连接失败:', err);
+        }
+        useWebAudio = false;
     }
     
     // 重置进度条
@@ -2086,5 +2310,151 @@ function copyShareUrl() {
             .catch(err => {
                 console.error('Clipboard API复制失败:', err);
             });
+    }
+}
+
+/**
+ * 初始化音频输出检测
+ * 检测AirPlay连接状态并设置WebAudio
+ */
+function initAudioOutput() {
+    // 初始化WebAudio Context（仅在需要时）
+    if (!audioContext && window.AudioContext) {
+        try {
+            audioContext = new AudioContext();
+            console.log('WebAudio Context初始化成功');
+        } catch (e) {
+            console.warn('WebAudio Context初始化失败:', e);
+        }
+    }
+    
+    // 检测设备是否支持mediaDevices API
+    if (navigator.mediaDevices && navigator.mediaDevices.ondevicechange !== undefined) {
+        // 设置设备变化监听
+        navigator.mediaDevices.ondevicechange = checkAudioOutputDevices;
+        
+        // 首次检查可用设备
+        checkAudioOutputDevices();
+    } else {
+        console.log('当前浏览器不支持mediaDevices API，无法检测AirPlay连接');
+        
+        // 在iOS设备上添加备用检测
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+            // iOS设备上使用WebAudio作为最佳实践
+            setupWebAudioForIOS();
+        }
+    }
+}
+
+/**
+ * 检查音频输出设备，检测AirPlay连接
+ */
+async function checkAudioOutputDevices() {
+    // 检查是否支持获取设备列表
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+        console.log('当前浏览器不支持enumerateDevices');
+        return;
+    }
+    
+    try {
+        // 更新状态为"正在检测"
+        updateAirplayStatus('检测中', 'connecting');
+        
+        // 获取所有设备
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        
+        // 筛选出音频输出设备
+        const audioOutputDevices = devices.filter(device => device.kind === 'audiooutput');
+        
+        // 查找AirPlay设备（通常名称中包含"AirPlay"或特定标识）
+        const airplayDevice = audioOutputDevices.find(device => 
+            device.label.includes('AirPlay') || 
+            device.label.includes('Apple TV') ||
+            device.label.includes('外部音频设备')
+        );
+        
+        if (airplayDevice) {
+            console.log('检测到AirPlay设备:', airplayDevice.label);
+            airPlayDevice = airplayDevice;
+            isAirPlayConnected = true;
+            updateAirplayStatus('已连接', 'connected');
+            currentAudioOutput.textContent = airplayDevice.label;
+            
+            // 如果当前有音频在播放，尝试切换到AirPlay设备
+            if (isPlaying && !isPaused) {
+                switchToAirPlayOutput();
+            }
+        } else {
+            console.log('未检测到AirPlay设备');
+            airPlayDevice = null;
+            isAirPlayConnected = false;
+            updateAirplayStatus('未连接', '');
+            currentAudioOutput.textContent = '手机扬声器';
+            
+            // 如果之前使用的是AirPlay，现在切换回默认设备
+            if (useWebAudio) {
+                switchToDefaultOutput();
+            }
+        }
+    } catch (err) {
+        console.error('检测音频设备时出错:', err);
+        updateAirplayStatus('检测失败', '');
+    }
+}
+
+/**
+ * 更新AirPlay状态显示
+ * @param {string} text - 状态文本
+ * @param {string} className - 状态类名
+ */
+function updateAirplayStatus(text, className) {
+    if (airplayStatus) {
+        airplayStatus.textContent = text;
+        airplayStatus.className = 'status-indicator';
+        if (className) {
+            airplayStatus.classList.add(className);
+        }
+    }
+}
+
+/**
+ * 为iOS设备设置WebAudio
+ * 在iOS上WebAudio API通常更可靠
+ */
+function setupWebAudioForIOS() {
+    // 仅在iOS设备上执行
+    if (!/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        return;
+    }
+    
+    console.log('iOS设备检测，设置WebAudio');
+    
+    // 在用户交互后初始化AudioContext
+    document.addEventListener('touchstart', initIOSAudioContext, { once: true });
+    
+    // 显示iOS专用提示
+    const note = document.createElement('p');
+    note.className = 'note ios-audio-note';
+    note.textContent = '注意: iOS设备需要手动切换AirPlay输出';
+    audioOutputGroup.appendChild(note);
+    
+    // 更改按钮文本
+    if (audioOutputBtn) {
+        audioOutputBtn.textContent = '显示AirPlay控制';
+    }
+}
+
+/**
+ * 初始化iOS AudioContext
+ * 需要在用户交互后初始化
+ */
+function initIOSAudioContext() {
+    if (!audioContext && window.AudioContext) {
+        try {
+            audioContext = new AudioContext();
+            console.log('iOS WebAudio Context初始化成功');
+        } catch (e) {
+            console.warn('iOS WebAudio Context初始化失败:', e);
+        }
     }
 } 
